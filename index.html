@@ -1,23 +1,25 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Captura en Anaquel</title>
+<title>JMR Captura en Anaquel</title>
+<link rel="icon" href="icono.png">
+<link rel="apple-touch-icon" href="icono.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
 /* Layout: one narrow working column; the shelf label plate on top, the capture form under it, the shelf's list below. */
 :root{
-  --bg:#eef0f2; --panel:#ffffff; --ink:#18212b; --mute:#5b6875; --line:#cfd5db;
-  --accent:#c2410c; --accent-ink:#ffffff; --plate:#18212b; --plate-ink:#f6d24a;
+  --bg:#eef1ef; --panel:#ffffff; --ink:#16231b; --mute:#56645b; --line:#cdd6d0;
+  --accent:#b3122a; --accent-ink:#ffffff; --plate:#0d4a2a; --plate-ink:#ffffff;
   --ok:#1f7a45; --warn:#9a5b00; --warn-bg:#fff3d1; --bad:#b3261e;
   --f-body:"Barlow",system-ui,sans-serif; --f-head:"Barlow Condensed","Arial Narrow",sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#12171d; --panel:#1b222b; --ink:#e8edf2; --mute:#9aa7b4; --line:#33404d;
-  --accent:#f0743a; --accent-ink:#17110d; --plate:#0b0f13; --plate-ink:#f6d24a;
+  --bg:#101612; --panel:#19211c; --ink:#e8efea; --mute:#9bab9f; --line:#313f36;
+  --accent:#cf2440; --accent-ink:#ffffff; --plate:#0f5a33; --plate-ink:#ffffff;
   --ok:#5fc48a; --warn:#f0c060; --warn-bg:#3a2e12; --bad:#ff8a80; color-scheme:dark } }
 :root[data-theme="dark"]{
-  --bg:#12171d; --panel:#1b222b; --ink:#e8edf2; --mute:#9aa7b4; --line:#33404d;
-  --accent:#f0743a; --accent-ink:#17110d; --plate:#0b0f13; --plate-ink:#f6d24a;
+  --bg:#101612; --panel:#19211c; --ink:#e8efea; --mute:#9bab9f; --line:#313f36;
+  --accent:#cf2440; --accent-ink:#ffffff; --plate:#0f5a33; --plate-ink:#ffffff;
   --ok:#5fc48a; --warn:#f0c060; --warn-bg:#3a2e12; --bad:#ff8a80; color-scheme:dark }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.4;padding-inline:16px;padding-block:16px 48px}
@@ -61,6 +63,10 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
 .empty{color:var(--mute);padding:14px 0;border-top:1px solid var(--line);margin:0}
 .ro{background:var(--warn-bg);border:1px solid var(--warn);border-radius:4px;padding:12px;font-size:15px}
 
+.brand{display:flex;gap:12px;align-items:center;min-width:0}
+.brand img{border-radius:8px;border:1px solid var(--line);flex:none}
+.neg{margin:0;font-family:var(--f-head);text-transform:uppercase;letter-spacing:.05em;font-size:14px;color:var(--ok);font-weight:700}
+.listhead h2 span,.count{color:inherit}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .who{font-size:14px;color:var(--mute);display:flex;gap:10px;align-items:center}
 .who button{min-height:38px;font-size:14px;padding:0 12px}
@@ -69,8 +75,9 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
 </head><body>
 <div class="wrap">
   <header class="top">
-    <div><h1>Captura en anaquel</h1>
-    <p class="sub">Paso 1 del levantamiento: número de parte, cantidad y anaquel.</p></div>
+    <div class="brand"><img src="logo.jpg" alt="JMR Refacciones y Servicios Automotrices" width="64" height="64">
+    <div><p class="neg">JMR Refacciones &amp; Servicios Automotrices</p><h1>Captura en anaquel</h1>
+    <p class="sub">Paso 1 del levantamiento: número de parte, cantidad y anaquel.</p></div></div>
     <div class="who" id="who" hidden><span id="nombre"></span><button type="button" id="salir">Salir</button></div>
   </header>
 
