@@ -72,6 +72,13 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
 .brand img{border-radius:8px;border:1px solid var(--line);flex:none}
 .neg{margin:0;font-family:var(--f-head);text-transform:uppercase;letter-spacing:.05em;font-size:14px;color:var(--ok);font-weight:700}
 .listhead h2 span,.count{color:inherit}
+.vista{display:flex;flex-direction:column;gap:16px}
+.tabs{display:flex;gap:8px}
+.tabs button{flex:1;font-family:var(--f-head);font-size:20px;letter-spacing:.03em;text-transform:uppercase}
+.tabs button[aria-selected="true"]{background:var(--plate);color:var(--plate-ink);border-color:var(--plate)}
+#q{font-family:var(--f-mono);font-size:22px;text-transform:uppercase}
+li .an{font-family:var(--f-mono);font-weight:700;background:var(--plate);color:var(--plate-ink);padding:6px 10px;border-radius:4px;font-size:16px}
+li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--mute)}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .who{font-size:14px;color:var(--mute);display:flex;gap:10px;align-items:center}
 .who button{min-height:38px;font-size:14px;padding:0 12px}
@@ -96,6 +103,11 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
   </form>
 
   <div id="app" hidden style="display:flex;flex-direction:column;gap:16px">
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tcap" aria-selected="true">Capturar</button>
+    <button type="button" role="tab" id="tbus" aria-selected="false">Buscar</button>
+  </div>
+  <div id="vcap" class="vista">
   <section class="panel" aria-label="Anaquel actual">
     <div class="shelf">
       <div class="plate" id="plate" aria-live="polite">A-1</div>
@@ -134,6 +146,17 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
     <p class="empty" id="empty">Cargando…</p>
     <button type="button" id="recargar">Actualizar lista</button>
   </section>
+  </div>
+  <div id="vbus" class="vista" hidden>
+  <section class="panel">
+    <div>
+      <label class="lbl" for="q">Buscar número de parte</label>
+      <input id="q" type="search" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Todo o parte del número" autocomplete="off">
+      <p class="hint" id="qhint">Escriba al menos 2 caracteres. Busca en todos los anaqueles.</p>
+    </div>
+    <ul id="res"></ul>
+  </section>
+  </div>
   </div>
 </div>
 
@@ -266,6 +289,39 @@ async function cargar(){
   if(error){$("empty").hidden=false;$("empty").textContent="No se pudo cargar la lista. Presione Actualizar lista.";return}
   rows=data||[];render();
 }
+// ---- Buscar ----
+function vista(v){
+  $("vcap").hidden=v!=="cap";$("vbus").hidden=v!=="bus";
+  $("tcap").setAttribute("aria-selected",v==="cap");$("tbus").setAttribute("aria-selected",v==="bus");
+  if(v==="bus")$("q").focus();else cargar();
+}
+$("tcap").onclick=()=>vista("cap");$("tbus").onclick=()=>vista("bus");
+let qt=null,qn=0;
+$("q").addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(buscar,300)});
+async function buscar(){
+  const t=norm($("q").value),ul=$("res"),h=$("qhint"),n=++qn;
+  if(t.length<2){ul.replaceChildren();h.textContent="Escriba al menos 2 caracteres. Busca en todos los anaqueles.";return}
+  if(!sb||!uid)return;
+  h.textContent="Buscando…";
+  const pat="%"+t.replace(/[\\%_]/g,"\\$&")+"%";
+  const {data,error}=await sb.from("piezas").select("parte,cantidad,anaquel").ilike("parte",pat).order("parte").limit(50);
+  if(n!==qn)return;
+  ul.replaceChildren();
+  if(error){h.textContent="No se pudo buscar. Revise la conexión e intente de nuevo.";return}
+  if(!data.length){h.textContent="No hay ninguna pieza registrada con «"+t+"»."+(CAT[t]?" En catálogo sí existe: "+CAT[t]+".":"");return}
+  h.textContent=data.length===50?"Se muestran las primeras 50. Escriba más caracteres para afinar.":data.length+(data.length===1?" resultado.":" resultados.");
+  for(const r of data){
+    const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+    const nn=document.createElement("div");nn.className="n";nn.textContent=r.parte;
+    const w=document.createElement("div");w.className="w";w.textContent=CAT[r.parte]||"";
+    p.append(nn,w);
+    const q=document.createElement("div");q.className="q";q.textContent=r.cantidad;
+    const sm=document.createElement("small");sm.textContent=r.cantidad===1?"pieza":"piezas";q.append(sm);
+    const an=document.createElement("div");an.className="an";an.textContent=r.anaquel;
+    li.append(p,q,an);ul.append(li);
+  }
+}
+
 const s0=shelf();$("plate").textContent=s0;$("enplate").textContent=s0;$("lplate").textContent=s0;
 if(sb)sb.auth.getSession().then(({data})=>{if(!data.session)$("login").hidden=false});
 </script>
