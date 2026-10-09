@@ -76,7 +76,9 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
 .tabs{display:flex;gap:8px}
 .tabs button{flex:1;padding:0 6px;font-family:var(--f-head);font-size:18px;letter-spacing:.03em;text-transform:uppercase}
 .tabs button[aria-selected="true"]{background:var(--plate);color:var(--plate-ink);border-color:var(--plate)}
-#q{font-family:var(--f-mono);font-size:22px;text-transform:uppercase}
+#q{font-family:var(--f-mono);font-size:19px}
+li .cst{flex:none}
+li .cst button{min-height:42px;padding:0 12px;font-size:14px}
 li .an{font-family:var(--f-mono);font-weight:700;background:var(--plate);color:var(--plate-ink);padding:6px 10px;border-radius:4px;font-size:16px}
 li{flex-wrap:wrap}
 li .sal{flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -155,9 +157,10 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
   <section class="panel">
     <div>
       <label class="lbl" for="q">Buscar pieza</label>
-      <input id="q" type="search" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Número, descripción o marca" autocomplete="off">
-      <p class="hint" id="qhint">Escriba al menos 2 caracteres. Busca en todos los anaqueles.</p>
+      <input id="q" type="search" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="balatas hilux 2019 o número" autocomplete="off">
     </div>
+    <div class="listhead"><h2>En mi inventario</h2></div>
+    <p class="hint" id="qhint">Escriba al menos 2 caracteres. Busca en todos los anaqueles.</p>
     <div id="bmsg" hidden></div>
     <ul id="res"></ul>
     <div id="sol" hidden>
@@ -170,6 +173,11 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
       <input id="snota" type="text" placeholder="Nota: cliente, vehículo (opcional)" autocomplete="off" style="margin-top:8px">
       <button class="main" type="button" id="sbtn" style="margin-top:8px;width:100%">ANOTAR COMO SOLICITADA</button>
     </div>
+  </section>
+  <section class="panel">
+    <div class="listhead"><h2>En catálogos</h2><span class="count" id="ccount"></span></div>
+    <p class="hint" id="chint">Escriba la pieza y el vehículo, por ejemplo: balatas delanteras hilux 2019.</p>
+    <ul id="cres"></ul>
   </section>
   </div>
   <div id="vfic" class="vista" hidden>
@@ -343,11 +351,11 @@ function vista(v){
   $("vcap").hidden=v!=="cap";$("vbus").hidden=v!=="bus";$("vsur").hidden=v!=="sur";$("vfic").hidden=v!=="fic";
   if(v==="fic")return;
   $("tcap").setAttribute("aria-selected",v==="cap");$("tbus").setAttribute("aria-selected",v==="bus");$("tsur").setAttribute("aria-selected",v==="sur");
-  if(v==="bus")$("q").focus();else if(v==="sur")surtir();else cargar();
+  if(v==="bus"){$("q").focus();catLoad().catch(()=>{})}else if(v==="sur")surtir();else cargar();
 }
 $("tcap").onclick=()=>vista("cap");$("tbus").onclick=()=>vista("bus");$("tsur").onclick=()=>vista("sur");$("surrec").onclick=()=>surtir();
 let qt=null,qn=0;
-$("q").addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(buscar,300)});
+$("q").addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(()=>{buscar();catBuscar()},350)});
 async function buscar(){
   const t=norm($("q").value),ul=$("res"),h=$("qhint"),n=++qn;
   $("sol").hidden=true;
@@ -362,7 +370,7 @@ async function buscar(){
   if(n!==qn)return;
   ul.replaceChildren();
   if(error){h.textContent="No se pudo buscar ("+(error.code||error.message||"sin detalle")+"). Revise la conexión e intente de nuevo.";return}
-  if(!data.length){h.textContent="No hay ninguna pieza registrada con «"+t+"»."+(CAT[t]?" En catálogo sí existe: "+CAT[t]+".":"");$("sol").hidden=false;return}
+  if(!data.length){h.textContent="No está en su inventario.";$("sol").hidden=!/\d/.test(t)||/\s/.test($("q").value.trim());return}
   h.textContent=data.length===50?"Se muestran las primeras 50. Escriba más caracteres para afinar.":data.length+(data.length===1?" resultado.":" resultados.");
   for(const r of data){
     const li=document.createElement("li"),p=document.createElement("div");p.className="p";
@@ -492,8 +500,70 @@ async function surtir(){
   }
 }
 
+// ---- Catálogos: buscar por pieza y vehículo ----
+let CD=null,cdP=null,cHay=null,cVoc=null,cLim=30,cn=0;
+function catLoad(){return cdP||(cdP=fetch("catalogo.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(d=>{CD=d;cHay=new Array(d.r.length);return d}).catch(e=>{cdP=null;throw e}))}
+const cnorm=t=>String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9.\-]+/g," ").trim();
+const CGEN={delantera:"delanter",delantero:"delanter",delanteras:"delanter",delanteros:"delanter",trasera:"traser",trasero:"traser",traseras:"traser",traseros:"traser",izquierda:"izquierd",izquierdo:"izquierd",derecha:"derech",derecho:"derech"};
+const cstem=w=>{if(CGEN[w])return CGEN[w];if(/^[a-z]+$/.test(w)&&w.length>4){if(w.endsWith("es")&&!/[aeiou]es$/.test(w))return w.slice(0,-2);if(w.endsWith("s"))return w.slice(0,-1)}return w};
+const CALIAS={vw:["volkswagen"],cubrepolvo:["cubre","polvo"],cubrepolvos:["cubre","polvo"],bujias:["bujia"],retenes:["reten"],mb:["mercedes"],amortiguadores:["amortiguador"],rodamientos:["rodamiento"],pastillas:["balata"],pastilla:["balata"]};
+const CSTOP=new Set(["de","del","la","el","los","las","para","con","y","motor","un","una","ano","modelo","lts","lt","l"]);
+function chay(i){let h=cHay[i];if(h)return h;const S=CD.s,r=CD.r[i],part=S[r[1]];
+  const txt=cnorm([S[r[0]],part,S[r[2]],S[r[3]],S[r[4]],S[r[5]],S[r[8]],S[r[9]],S[r[10]],S[r[11]]].join(" "));
+  return cHay[i]=" "+txt.split(" ").map(cstem).join(" ")+" "+part.toLowerCase().replace(/[^a-z0-9]/g,"")+" "}
+function cparse(q){const o={year:null,toks:[]};const n=cnorm(q).replace(/(\d)\s*(lts?|l)\b/g,"$1");
+  for(const w of n.split(" ")){if(!w)continue;
+    if(/^(19[3-9]\d|20[0-3]\d)$/.test(w)&&o.year===null){o.year=+w;continue}
+    if(CSTOP.has(w))continue;const a=CALIAS[w];if(a){a.forEach(x=>o.toks.push(cstem(x)));continue}
+    o.toks.push(cstem(w))}
+  return o}
+function cvocab(){if(cVoc)return cVoc;const S=CD.s,v=new Set();for(const r of CD.r)for(const w of cnorm(S[r[4]]+" "+S[r[5]]+" "+S[r[2]]).split(" "))if(w.length>=4&&/^[a-z]+$/.test(w))v.add(cstem(w));return cVoc=[...v]}
+function cnear(a,b){if(Math.abs(a.length-b.length)>1)return false;let i=0,j=0,e=0;while(i<a.length&&j<b.length){if(a[i]===b[j]){i++;j++;continue}if(++e>1)return false;if(a.length>b.length)i++;else if(b.length>a.length)j++;else{if(a[i+1]===b[j]&&a[i]===b[j+1]){i+=2;j+=2}else{i++;j++}}}return e+(a.length-i)+(b.length-j)<=1}
+function crun(p){const res=[],R=CD.r;if(!p.toks.length)return res;
+  const toks=p.toks.map(t=>({a:" "+t,b:t.replace(/[^a-z0-9]/g,"")}));
+  for(let i=0;i<R.length;i++){const r=R[i];if(p.year!==null&&(!r[6]||p.year<r[6]||p.year>r[7]))continue;
+    const h=chay(i);let ok=true;
+    for(const t of toks)if(h.indexOf(t.a)<0&&!(t.b.length>=4&&/\d/.test(t.b)&&h.indexOf(" "+t.b)>=0)){ok=false;break}
+    if(ok)res.push(i)}
+  return res}
+function csearch(q){const p=cparse(q);let res=crun(p),fixes=[];
+  if(!res.length&&p.toks.length){const V=cvocab();const out=p.toks.map(t=>{if(t.length<5||!/^[a-z]+$/.test(t))return t;if(V.some(v=>v.startsWith(t)))return t;const c=V.find(v=>cnear(t,v));if(c){fixes.push(t+" → "+c);return c}return t});
+    if(fixes.length){p.toks=out;res=crun(p)}}
+  let sinAno=null;if(!res.length&&p.year!==null&&p.toks.length){sinAno=p.year;p.year=null;res=crun(p)}
+  return {res,fixes,sinAno:res.length?sinAno:null}}
+async function catBuscar(more){
+  const q=$("q").value,ul=$("cres"),h=$("chint"),n=++cn;if(!more)cLim=30;
+  if(q.trim().length<3){ul.replaceChildren();h.textContent="Escriba la pieza y el vehículo, por ejemplo: balatas delanteras hilux 2019.";$("ccount").textContent="";return}
+  if(!CD){h.textContent="Cargando catálogos…";try{await catLoad()}catch(e){h.textContent="No se pudieron cargar los catálogos. Revise la conexión.";return}if(n!==cn)return}
+  const S=CD.s,R=CD.r,{res,fixes,sinAno}=csearch(q);
+  ul.replaceChildren();
+  $("ccount").textContent=res.length?res.length.toLocaleString("es-MX")+(res.length===1?" aplicación":" aplicaciones"):"";
+  if(!res.length){h.textContent="Ningún catálogo cargado trae esa combinación. Pruebe con menos palabras o sin el año. Hoy hay balatas, bujías, baleros, retenes y cubrepolvos; faltan filtros y suspensión.";return}
+  h.textContent=(sinAno?"Los catálogos cargados no traen esa pieza para "+sinAno+". Se muestran otros años: revise si aplica. ":"")+(fixes.length?"Busqué "+fixes.join(", ")+". ":"")+"Datos de catálogo por validar: confirme el número antes de pedir.";
+  res.sort((a,b)=>{const x=R[a],y=R[b];return S[x[2]].localeCompare(S[y[2]])||S[x[4]].localeCompare(S[y[4]])||S[x[5]].localeCompare(S[y[5]])||(y[7]||0)-(x[7]||0)||S[x[1]].localeCompare(S[y[1]])});
+  const show=res.slice(0,cLim),slots={};
+  for(const i of show){const r=R[i],parte=S[r[1]].toUpperCase().replace(/\s+/g,"");
+    const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+    const nn=document.createElement("div");nn.className="n";nn.textContent=S[r[1]];
+    const yrs=r[6]?(r[6]===r[7]?String(r[6]):r[6]+"–"+r[7]):"años no indicados";
+    const veh=[S[r[4]],S[r[5]]].filter(Boolean).join(" ")+" · "+yrs;
+    const lines=[S[r[0]]+" · "+S[r[2]],veh,[S[r[8]],S[r[10]],S[r[9]]].filter(Boolean).join(" · "),S[r[11]],r[14]?"Con duda: revisar en el catálogo impreso":""].filter(Boolean);
+    p.append(nn);for(const t of lines){const w=document.createElement("div");w.className="w";w.textContent=t;p.append(w)}
+    const st=document.createElement("div");st.className="cst";(slots[parte]=slots[parte]||[]).push({st,veh});
+    li.append(p,st);ul.append(li)}
+  if(res.length>cLim)ul.append(Object.assign(document.createElement("li"),{}),btn("Mostrar más ("+(res.length-cLim).toLocaleString("es-MX")+" restantes)",()=>{cLim+=60;catBuscar(true)}));
+  if(!sb||!uid)return;
+  const {data}=await sb.from("piezas").select("parte,cantidad,anaquel").in("parte",Object.keys(slots).slice(0,200));
+  if(n!==cn)return;const inv={};for(const r of data||[])inv[r.parte]=r;
+  for(const parte in slots)for(const {st,veh} of slots[parte]){const r=inv[parte];
+    if(r&&r.cantidad>0){const an=document.createElement("div");an.className="an";an.textContent=r.cantidad+" en "+r.anaquel;st.append(an)}
+    else{const b=btn(r?"Agotada · Solicitar":"Solicitar",async()=>{b.disabled=true;
+      const {error}=await sb.from("solicitadas").insert({parte,cantidad:1,nota:veh.slice(0,200),usuario:uid});
+      if(error){b.disabled=false;bsay("err",sinTabla(error)?FALTA:"No se pudo anotar. Revise la conexión.")}else b.textContent="Anotada"});st.append(b)}}
+}
+
 // ---- Actualización automática ----
-const VER="9";
+const VER="10";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
