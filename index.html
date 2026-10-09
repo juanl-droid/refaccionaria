@@ -74,10 +74,13 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
 .listhead h2 span,.count{color:inherit}
 .vista{display:flex;flex-direction:column;gap:16px}
 .tabs{display:flex;gap:8px}
-.tabs button{flex:1;font-family:var(--f-head);font-size:20px;letter-spacing:.03em;text-transform:uppercase}
+.tabs button{flex:1;padding:0 6px;font-family:var(--f-head);font-size:18px;letter-spacing:.03em;text-transform:uppercase}
 .tabs button[aria-selected="true"]{background:var(--plate);color:var(--plate-ink);border-color:var(--plate)}
 #q{font-family:var(--f-mono);font-size:22px;text-transform:uppercase}
 li .an{font-family:var(--f-mono);font-weight:700;background:var(--plate);color:var(--plate-ink);padding:6px 10px;border-radius:4px;font-size:16px}
+li{flex-wrap:wrap}
+li .sal{flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+li .sal input{width:90px;text-align:center;font-family:var(--f-mono);font-size:20px}
 li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--mute)}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .who{font-size:14px;color:var(--mute);display:flex;gap:10px;align-items:center}
@@ -106,6 +109,7 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
   <div class="tabs" role="tablist">
     <button type="button" role="tab" id="tcap" aria-selected="true">Capturar</button>
     <button type="button" role="tab" id="tbus" aria-selected="false">Buscar</button>
+    <button type="button" role="tab" id="tsur" aria-selected="false">Por surtir</button>
   </div>
   <div id="vcap" class="vista">
   <section class="panel" aria-label="Anaquel actual">
@@ -154,7 +158,29 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
       <input id="q" type="search" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Todo o parte del número" autocomplete="off">
       <p class="hint" id="qhint">Escriba al menos 2 caracteres. Busca en todos los anaqueles.</p>
     </div>
+    <div id="bmsg" hidden></div>
     <ul id="res"></ul>
+    <div id="sol" hidden>
+      <p class="hint">¿Se la pidieron y no la hay? Anótela para la lista a surtir.</p>
+      <div class="qty">
+        <button type="button" id="smenos" aria-label="Quitar una">−</button>
+        <input id="scant" type="number" inputmode="numeric" min="1" step="1" value="1" aria-label="Cantidad solicitada">
+        <button type="button" id="smas" aria-label="Agregar una">+</button>
+      </div>
+      <input id="snota" type="text" placeholder="Nota: cliente, vehículo (opcional)" autocomplete="off" style="margin-top:8px">
+      <button class="main" type="button" id="sbtn" style="margin-top:8px;width:100%">ANOTAR COMO SOLICITADA</button>
+    </div>
+  </section>
+  </div>
+  <div id="vsur" class="vista" hidden>
+  <section class="panel">
+    <div class="listhead"><h2>Piezas solicitadas</h2><span class="count" id="surcount"></span></div>
+    <p class="hint" id="surhint">Cargando…</p>
+    <ul id="sur"></ul>
+    <div class="listhead"><h2>Agotadas</h2><span class="count" id="agocount"></span></div>
+    <p class="hint" id="agohint"></p>
+    <ul id="ago"></ul>
+    <button type="button" id="surrec">Actualizar</button>
   </section>
   </div>
   </div>
@@ -292,15 +318,16 @@ async function cargar(){
 }
 // ---- Buscar ----
 function vista(v){
-  $("vcap").hidden=v!=="cap";$("vbus").hidden=v!=="bus";
-  $("tcap").setAttribute("aria-selected",v==="cap");$("tbus").setAttribute("aria-selected",v==="bus");
-  if(v==="bus")$("q").focus();else cargar();
+  $("vcap").hidden=v!=="cap";$("vbus").hidden=v!=="bus";$("vsur").hidden=v!=="sur";
+  $("tcap").setAttribute("aria-selected",v==="cap");$("tbus").setAttribute("aria-selected",v==="bus");$("tsur").setAttribute("aria-selected",v==="sur");
+  if(v==="bus")$("q").focus();else if(v==="sur")surtir();else cargar();
 }
-$("tcap").onclick=()=>vista("cap");$("tbus").onclick=()=>vista("bus");
+$("tcap").onclick=()=>vista("cap");$("tbus").onclick=()=>vista("bus");$("tsur").onclick=()=>vista("sur");$("surrec").onclick=()=>surtir();
 let qt=null,qn=0;
 $("q").addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(buscar,300)});
 async function buscar(){
   const t=norm($("q").value),ul=$("res"),h=$("qhint"),n=++qn;
+  $("sol").hidden=true;
   if(t.length<2){ul.replaceChildren();h.textContent="Escriba al menos 2 caracteres. Busca en todos los anaqueles.";return}
   if(!sb||!uid)return;
   h.textContent="Buscando…";
@@ -309,7 +336,7 @@ async function buscar(){
   if(n!==qn)return;
   ul.replaceChildren();
   if(error){h.textContent="No se pudo buscar. Revise la conexión e intente de nuevo.";return}
-  if(!data.length){h.textContent="No hay ninguna pieza registrada con «"+t+"»."+(CAT[t]?" En catálogo sí existe: "+CAT[t]+".":"");return}
+  if(!data.length){h.textContent="No hay ninguna pieza registrada con «"+t+"»."+(CAT[t]?" En catálogo sí existe: "+CAT[t]+".":"");$("sol").hidden=false;return}
   h.textContent=data.length===50?"Se muestran las primeras 50. Escriba más caracteres para afinar.":data.length+(data.length===1?" resultado.":" resultados.");
   for(const r of data){
     const li=document.createElement("li"),p=document.createElement("div");p.className="p";
@@ -319,12 +346,87 @@ async function buscar(){
     const q=document.createElement("div");q.className="q";q.textContent=r.cantidad;
     const sm=document.createElement("small");sm.textContent=r.cantidad===1?"pieza":"piezas";q.append(sm);
     const an=document.createElement("div");an.className="an";an.textContent=r.anaquel;
-    li.append(p,q,an);ul.append(li);
+    li.append(p,q,an);
+    if(r.cantidad>0)li.append(btn("Salida",()=>pedirSalida(li,r)));
+    else li.append(btn("Solicitar",()=>{$("sol").hidden=false;$("scant").focus()}));
+    ul.append(li);
+  }
+}
+function bsay(kind,text){const m=$("bmsg");m.className="msg "+kind;m.textContent=text;m.hidden=false}
+function pedirSalida(li,r){
+  const old=li.querySelector(".sal");if(old){old.remove();return}
+  const d=document.createElement("div");d.className="sal";
+  const i=document.createElement("input");i.type="number";i.inputMode="numeric";i.min=1;i.max=r.cantidad;i.value=1;i.setAttribute("aria-label","Cantidad que sale");
+  const ok=btn("Confirmar salida",async()=>{
+    const n=Math.floor(Number(i.value)||0);
+    if(n<1||n>r.cantidad){bsay("err","La cantidad debe estar entre 1 y "+r.cantidad+".");return}
+    ok.disabled=true;
+    const fin=r.cantidad-n;
+    const {data,error}=await sb.from("piezas").update({cantidad:fin,actualizado:new Date().toISOString()}).eq("parte",r.parte).eq("cantidad",r.cantidad).select("parte");
+    if(error){ok.disabled=false;bsay("err","No se pudo registrar la salida. Revise la conexión.");return}
+    if(!data.length){bsay("dup","La existencia de "+r.parte+" cambió mientras tanto. Se actualizó la lista; intente de nuevo.");buscar();return}
+    await mov(r.parte,-n,fin,r.anaquel,"salida");
+    bsay("ok","Salida de "+n+" de "+r.parte+". Quedan "+fin+" en "+r.anaquel+".");buscar();
+  });
+  ok.className="main";ok.style.minHeight="46px";ok.style.fontSize="18px";
+  d.append(i,ok,btn("Cancelar",()=>d.remove()));li.append(d);i.focus();i.select();
+}
+// ---- Solicitadas ----
+const FALTA="Falta activar la lista de solicitadas en la base. Avise a Juan Luis.";
+const sinTabla=e=>e&&(e.code==="42P01"||e.code==="PGRST205");
+const scant=()=>Math.max(1,Math.floor(Number($("scant").value)||1));
+$("smenos").onclick=()=>{$("scant").value=Math.max(1,scant()-1)};
+$("smas").onclick=()=>{$("scant").value=scant()+1};
+$("sbtn").onclick=async()=>{
+  const p=norm($("q").value);if(p.length<2||!sb||!uid)return;
+  $("sbtn").disabled=true;
+  const {error}=await sb.from("solicitadas").insert({parte:p,cantidad:scant(),nota:$("snota").value.trim()||null,usuario:uid});
+  $("sbtn").disabled=false;
+  if(error){bsay("err",sinTabla(error)?FALTA:"No se pudo anotar. Revise la conexión.");return}
+  bsay("ok","Anotada "+p+" ("+scant()+") en la lista a surtir.");
+  $("q").value="";$("snota").value="";$("scant").value=1;$("sol").hidden=true;$("res").replaceChildren();$("q").focus();
+};
+function fecha(t){try{return new Date(t).toLocaleDateString("es-MX",{day:"numeric",month:"short"})}catch(e){return ""}}
+let sn=0;
+async function surtir(){
+  if(!sb||!uid)return;const n=++sn;
+  const [a,b]=await Promise.all([
+    sb.from("solicitadas").select("id,parte,cantidad,nota,usuario,fecha").eq("surtida",false).order("fecha",{ascending:false}).limit(300),
+    sb.from("piezas").select("parte,anaquel").eq("cantidad",0).order("parte").limit(300)]);
+  if(n!==sn)return;
+  const ul=$("sur");ul.replaceChildren();
+  if(a.error){$("surhint").textContent=sinTabla(a.error)?FALTA:"No se pudo cargar. Presione Actualizar.";$("surcount").textContent=""}
+  else{
+    $("surcount").textContent=a.data.length?a.data.length+" pendientes":"";
+    $("surhint").textContent=a.data.length?"":"Nada pendiente. Las piezas que anote desde Buscar aparecen aquí.";
+    for(const r of a.data){
+      const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+      const nn=document.createElement("div");nn.className="n";nn.textContent=r.parte;
+      const w=document.createElement("div");w.className="w";
+      w.textContent=[CAT[r.parte]||"",r.nota||"",fecha(r.fecha),names[r.usuario]||""].filter(Boolean).join(" · ");
+      p.append(nn,w);
+      const q=document.createElement("div");q.className="q";q.textContent=r.cantidad;
+      const bt=btn("Ya se surtió",async()=>{bt.disabled=true;const {error}=await sb.from("solicitadas").update({surtida:true}).eq("id",r.id);if(error)bt.disabled=false;else surtir()});
+      li.append(p,q,bt);ul.append(li);
+    }
+  }
+  const ua=$("ago");ua.replaceChildren();
+  if(b.error){$("agohint").textContent="No se pudo cargar.";$("agocount").textContent=""}
+  else{
+    $("agocount").textContent=b.data.length?b.data.length+" números":"";
+    $("agohint").textContent=b.data.length?"Registradas con existencia en 0.":"Ninguna pieza registrada está en 0.";
+    for(const r of b.data){
+      const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+      const nn=document.createElement("div");nn.className="n";nn.textContent=r.parte;
+      const w=document.createElement("div");w.className="w";w.textContent=CAT[r.parte]||"";
+      p.append(nn,w);const an=document.createElement("div");an.className="an";an.textContent=r.anaquel;
+      li.append(p,an);ua.append(li);
+    }
   }
 }
 
 // ---- Actualización automática ----
-const VER="6";
+const VER="7";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
