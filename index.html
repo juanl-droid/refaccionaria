@@ -158,6 +158,7 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
   </section>
   </div>
   </div>
+  <p class="hint" id="ver" style="text-align:center"></p>
 </div>
 
 <script>
@@ -321,6 +322,13 @@ async function buscar(){
     li.append(p,q,an);ul.append(li);
   }
 }
+
+// ---- Actualización automática ----
+const VER="6";
+fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
+  t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
+}).catch(()=>{});
+$("ver").textContent="Versión "+VER;
 
 const s0=shelf();$("plate").textContent=s0;$("enplate").textContent=s0;$("lplate").textContent=s0;
 if(sb)sb.auth.getSession().then(({data})=>{if(!data.session)$("login").hidden=false});
