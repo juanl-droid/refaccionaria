@@ -154,8 +154,8 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
   <div id="vbus" class="vista" hidden>
   <section class="panel">
     <div>
-      <label class="lbl" for="q">Buscar número de parte</label>
-      <input id="q" type="search" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Todo o parte del número" autocomplete="off">
+      <label class="lbl" for="q">Buscar pieza</label>
+      <input id="q" type="search" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Número, descripción o marca" autocomplete="off">
       <p class="hint" id="qhint">Escriba al menos 2 caracteres. Busca en todos los anaqueles.</p>
     </div>
     <div id="bmsg" hidden></div>
@@ -355,10 +355,13 @@ async function buscar(){
   if(!sb||!uid)return;
   h.textContent="Buscando…";
   const pat="%"+t.replace(/[\\%_]/g,"\\$&")+"%";
-  const {data,error}=await sb.from("piezas").select("*").ilike("parte",pat).order("parte").limit(50);
+  const txt2=$("q").value.trim().replace(/[,()"*\\%_]/g," ").replace(/\s+/g," ");
+  const tp=t.replace(/[,()"*\\%_]/g,"");
+  let {data,error}=await sb.from("piezas").select("*").or(["parte.ilike.*"+tp+"*"].concat(["descripcion","marca","tipo","proveedor","notas"].map(c=>c+".ilike.*"+txt2+"*")).join(",")).order("parte").limit(50);
+  if(error)({data,error}=await sb.from("piezas").select("*").ilike("parte",pat).order("parte").limit(50));
   if(n!==qn)return;
   ul.replaceChildren();
-  if(error){h.textContent="No se pudo buscar. Revise la conexión e intente de nuevo.";return}
+  if(error){h.textContent="No se pudo buscar ("+(error.code||error.message||"sin detalle")+"). Revise la conexión e intente de nuevo.";return}
   if(!data.length){h.textContent="No hay ninguna pieza registrada con «"+t+"»."+(CAT[t]?" En catálogo sí existe: "+CAT[t]+".":"");$("sol").hidden=false;return}
   h.textContent=data.length===50?"Se muestran las primeras 50. Escriba más caracteres para afinar.":data.length+(data.length===1?" resultado.":" resultados.");
   for(const r of data){
@@ -490,7 +493,7 @@ async function surtir(){
 }
 
 // ---- Actualización automática ----
-const VER="8";
+const VER="9";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
