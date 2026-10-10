@@ -538,7 +538,7 @@ async function catBuscar(more){
   const S=CD.s,R=CD.r,{res,fixes,sinAno}=csearch(q);
   ul.replaceChildren();
   $("ccount").textContent=res.length?res.length.toLocaleString("es-MX")+(res.length===1?" aplicación":" aplicaciones"):"";
-  if(!res.length){h.textContent="Ningún catálogo cargado trae esa combinación. Pruebe con menos palabras o sin el año. Hoy hay filtros Gonher, balatas, bujías, baleros, retenes y cubrepolvos; falta suspensión.";return}
+  if(!res.length){h.textContent="Ningún catálogo cargado trae esa combinación. Pruebe con menos palabras o sin el año. Hoy hay filtros (Gonher, Interfil, Fram), suspensión y dirección SYD, balatas Wagner, bujías, baleros, retenes y cubrepolvos.";return}
   h.textContent=(sinAno?"Los catálogos cargados no traen esa pieza para "+sinAno+". Se muestran otros años: revise si aplica. ":"")+(fixes.length?"Busqué "+fixes.join(", ")+". ":"")+"Datos de catálogo por validar: confirme el número antes de pedir.";
   res.sort((a,b)=>{const x=R[a],y=R[b];return S[x[2]].localeCompare(S[y[2]])||S[x[4]].localeCompare(S[y[4]])||S[x[5]].localeCompare(S[y[5]])||(y[7]||0)-(x[7]||0)||S[x[1]].localeCompare(S[y[1]])});
   const show=res.slice(0,cLim),slots={};
@@ -563,7 +563,7 @@ async function catBuscar(more){
 }
 
 // ---- Actualización automática ----
-const VER="12";
+const VER="13";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
