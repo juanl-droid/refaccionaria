@@ -74,7 +74,7 @@ li button{min-height:42px;padding:0 12px;font-size:14px}
 .listhead h2 span,.count{color:inherit}
 .vista{display:flex;flex-direction:column;gap:16px}
 .tabs{display:flex;gap:8px}
-.tabs button{flex:1;padding:0 6px;font-family:var(--f-head);font-size:18px;letter-spacing:.03em;text-transform:uppercase}
+.tabs button{flex:1;min-width:0;padding:0 4px;font-family:var(--f-head);font-size:14px;letter-spacing:.02em;letter-spacing:.03em;text-transform:uppercase}
 .tabs button[aria-selected="true"]{background:var(--plate);color:var(--plate-ink);border-color:var(--plate)}
 #q{font-family:var(--f-mono);font-size:19px}
 li .cst{flex:none}
@@ -84,6 +84,11 @@ li{flex-wrap:wrap}
 li .sal{flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 li .sal input{width:90px;text-align:center;font-family:var(--f-mono);font-size:20px}
 li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--mute)}
+#ticket{font-family:var(--f-mono);font-size:13px;line-height:1.35;background:#fff;color:#000;padding:12px;border:1px dashed var(--line);max-width:300px;margin-inline:auto;width:100%}
+#ticket .tneg{font-weight:700;text-align:center;font-size:14px}#ticket .tc{text-align:center}#ticket .tb{font-weight:700;overflow-wrap:anywhere}
+#ticket .thr{border-top:1px dashed #000;margin:6px 0}#ticket .trow{display:flex;justify-content:space-between;gap:8px}#ticket .ttot{font-size:16px;font-weight:700}#ticket .tpie{margin-top:8px;font-size:11px}
+li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+@media print{@page{margin:3mm}body{background:#fff!important;padding:0!important}body *{visibility:hidden}#ticket,#ticket *{visibility:visible}#ticket{position:absolute;left:0;top:0;width:72mm;max-width:none;border:0;padding:0;font-size:12px}}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .who{font-size:14px;color:var(--mute);display:flex;gap:10px;align-items:center}
 .who button{min-height:38px;font-size:14px;padding:0 12px}
@@ -93,8 +98,7 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
 <div class="wrap">
   <header class="top">
     <div class="brand"><img src="logo.jpg" alt="JMR Refacciones y Servicios Automotrices" width="64" height="64">
-    <div><p class="neg">JMR Refacciones &amp; Servicios Automotrices</p><h1>Captura en anaquel</h1>
-    <p class="sub">Paso 1 del levantamiento: número de parte, cantidad y anaquel.</p></div></div>
+    <div><p class="neg">JMR Refacciones &amp; Servicios Automotrices</p><h1>Inventario y ventas</h1></div></div>
     <div class="who" id="who" hidden><span id="nombre"></span><button type="button" id="salir">Salir</button></div>
   </header>
 
@@ -111,7 +115,8 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
   <div class="tabs" role="tablist">
     <button type="button" role="tab" id="tcap" aria-selected="true">Capturar</button>
     <button type="button" role="tab" id="tbus" aria-selected="false">Buscar</button>
-    <button type="button" role="tab" id="tsur" aria-selected="false">Por surtir</button>
+    <button type="button" role="tab" id="tvnd" aria-selected="false">Vender</button>
+    <button type="button" role="tab" id="tsur" aria-selected="false">Surtir</button>
   </div>
   <div id="vcap" class="vista">
   <section class="panel" aria-label="Anaquel actual">
@@ -201,6 +206,34 @@ li .q small{display:block;font-family:var(--f-body);font-size:11px;color:var(--m
     <button class="main" type="submit" id="fguardar">GUARDAR FICHA</button>
     <div id="fmsg" hidden></div>
   </form>
+  </div>
+  <div id="vvnd" class="vista" hidden>
+  <div id="vcaja" class="vista">
+  <section class="panel">
+    <form id="vadd" class="qty" autocomplete="off">
+      <input id="vparte" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Número de parte" aria-label="Número de parte para vender">
+      <button type="submit" style="width:auto;font-size:16px">Agregar</button>
+    </form>
+    <p class="hint">También puede agregar piezas desde Buscar con el botón «＋ Venta».</p>
+    <ul id="cart"></ul>
+    <p class="empty" id="vempty">La venta está vacía.</p>
+    <div class="listhead"><h2>Total</h2><span id="vtotal" style="font-family:var(--f-mono);font-size:28px;font-weight:700">$0.00</span></div>
+    <div><label class="lbl" for="vcliente">Cliente (opcional)</label><input id="vcliente" type="text" maxlength="80" autocomplete="off"></div>
+    <button class="main" type="button" id="cobrar" disabled>COBRAR</button>
+    <button type="button" id="vaciar">Vaciar venta</button>
+    <div id="vmsg" hidden></div>
+  </section>
+  <section class="panel">
+    <div class="listhead"><h2>Ventas de hoy</h2><span class="count" id="vhoyc"></span></div>
+    <p class="hint" id="vhoyh"></p>
+    <ul id="vhoy"></ul>
+  </section>
+  </div>
+  <section class="panel" id="vtick" hidden>
+    <div id="ticket"></div>
+    <button class="main" type="button" id="timp">IMPRIMIR TICKET</button>
+    <div class="qty"><button type="button" id="tcomp" style="width:auto;flex:1;font-size:16px">Compartir</button><button type="button" id="tnueva" style="width:auto;flex:1;font-size:16px">Nueva venta</button></div>
+  </section>
   </div>
   <div id="vsur" class="vista" hidden>
   <section class="panel">
@@ -348,12 +381,13 @@ async function cargar(){
 }
 // ---- Buscar ----
 function vista(v){
-  $("vcap").hidden=v!=="cap";$("vbus").hidden=v!=="bus";$("vsur").hidden=v!=="sur";$("vfic").hidden=v!=="fic";
+  $("vcap").hidden=v!=="cap";$("vbus").hidden=v!=="bus";$("vsur").hidden=v!=="sur";$("vfic").hidden=v!=="fic";$("vvnd").hidden=v!=="vnd";
+  $("tvnd").setAttribute("aria-selected",v==="vnd");if(v==="vnd"){$("tcap").setAttribute("aria-selected",false);$("tbus").setAttribute("aria-selected",false);$("tsur").setAttribute("aria-selected",false);ventasHoy();return}
   if(v==="fic")return;
   $("tcap").setAttribute("aria-selected",v==="cap");$("tbus").setAttribute("aria-selected",v==="bus");$("tsur").setAttribute("aria-selected",v==="sur");
   if(v==="bus"){$("q").focus();catLoad().catch(()=>{})}else if(v==="sur")surtir();else cargar();
 }
-$("tcap").onclick=()=>vista("cap");$("tbus").onclick=()=>vista("bus");$("tsur").onclick=()=>vista("sur");$("surrec").onclick=()=>surtir();
+$("tcap").onclick=()=>vista("cap");$("tbus").onclick=()=>vista("bus");$("tsur").onclick=()=>vista("sur");$("tvnd").onclick=()=>vista("vnd");$("surrec").onclick=()=>surtir();
 let qt=null,qn=0;
 $("q").addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(()=>{buscar();catBuscar()},350)});
 async function buscar(){
@@ -381,6 +415,7 @@ async function buscar(){
     const sm=document.createElement("small");sm.textContent=r.cantidad===1?"pieza":"piezas";q.append(sm);
     const an=document.createElement("div");an.className="an";an.textContent=r.anaquel;
     li.append(p,q,an);
+    li.append(btn("＋ Venta",()=>{alCarrito(r.parte,r.descripcion);bsay("ok",r.parte+" agregada a la venta.")}));
     li.append(btn("Ficha",()=>abrirFicha(r)));
     if(r.cantidad>0)li.append(btn("Salida",()=>pedirSalida(li,r)));
     else li.append(btn("Solicitar",()=>{$("sol").hidden=false;$("scant").focus()}));
@@ -560,21 +595,121 @@ async function catBuscar(more){
     const veh=[S[r[4]],S[r[5]]].filter(Boolean).join(" ")+" · "+yrs;
     const lines=[S[r[0]]+" · "+S[r[2]],veh,[S[r[8]],S[r[10]],S[r[9]]].filter(Boolean).join(" · "),S[r[11]],r[14]?"Con duda: revisar en el catálogo impreso":""].filter(Boolean);
     p.append(nn);for(const t of lines){const w=document.createElement("div");w.className="w";w.textContent=t;p.append(w)}
-    const st=document.createElement("div");st.className="cst";(slots[parte]=slots[parte]||[]).push({st,veh});
+    const st=document.createElement("div");st.className="cst";(slots[parte]=slots[parte]||[]).push({st,veh,desc:S[r[3]]||S[r[2]]});
     li.append(p,st);ul.append(li)}
   if(res.length>cLim)ul.append(Object.assign(document.createElement("li"),{}),btn("Mostrar más ("+(res.length-cLim).toLocaleString("es-MX")+" restantes)",()=>{cLim+=60;catBuscar(true)}));
   if(!sb||!uid)return;
   const {data}=await sb.from("piezas").select("parte,cantidad,anaquel").in("parte",Object.keys(slots).slice(0,200));
   if(n!==cn)return;const inv={};for(const r of data||[])inv[r.parte]=r;
-  for(const parte in slots)for(const {st,veh} of slots[parte]){const r=inv[parte];
-    if(r&&r.cantidad>0){const an=document.createElement("div");an.className="an";an.textContent=r.cantidad+" en "+r.anaquel;st.append(an)}
+  for(const parte in slots)for(const {st,veh,desc} of slots[parte]){const r=inv[parte];
+    if(r&&r.cantidad>0){const an=document.createElement("div");an.className="an";an.textContent=r.cantidad+" en "+r.anaquel;st.append(an,btn("＋ Venta",()=>{alCarrito(parte,desc);bsay("ok",parte+" agregada a la venta.")}))}
     else{const b=btn(r?"Agotada · Solicitar":"Solicitar",async()=>{b.disabled=true;
       const {error}=await sb.from("solicitadas").insert({parte,cantidad:1,nota:veh.slice(0,200),usuario:uid});
       if(error){b.disabled=false;bsay("err",sinTabla(error)?FALTA:"No se pudo anotar. Revise la conexión.")}else b.textContent="Anotada"});st.append(b)}}
 }
 
+// ---- Vender ----
+let cart=[],cfg={},ventaHecha=null;
+const $$=n=>"$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2});
+const falta=e=>e&&(e.code==="PGRST202"||e.code==="42883"||e.code==="PGRST205"||e.code==="42P01");
+const FALTAV="Falta activar las ventas en la base. Avise a Juan Luis.";
+try{cart=JSON.parse(localStorage.getItem("venta")||"[]")||[]}catch(e){cart=[]}
+function guardaCart(){try{localStorage.setItem("venta",JSON.stringify(cart))}catch(e){}}
+function vsay(kind,text){const m=$("vmsg");if(!text){m.hidden=true;return}m.className="msg "+kind;m.textContent=text;m.hidden=false}
+async function alCarrito(parteRaw,desc){
+  const parte=norm(parteRaw);if(!parte||!sb||!uid)return;
+  const ya=cart.find(c=>c.parte===parte);
+  if(ya){ya.cantidad++;guardaCart();pintaCart();return}
+  const linea={parte,descripcion:desc||CAT[parte]||"",cantidad:1,precio:null,lista:false,exist:null,anaquel:null};
+  cart.push(linea);guardaCart();pintaCart();
+  const [a,b]=await Promise.all([sb.from("piezas").select("cantidad,anaquel,descripcion").eq("parte",parte).maybeSingle(),sb.rpc("precios_venta",{p_partes:[parte]})]);
+  if(a.data){linea.exist=a.data.cantidad;linea.anaquel=a.data.anaquel;if(a.data.descripcion)linea.descripcion=a.data.descripcion}else if(!a.error)linea.exist=-1;
+  if(falta(b.error))vsay("err",FALTAV);
+  const pr=b.data&&b.data[0];if(pr&&pr.precio!=null){linea.precio=Number(pr.precio);linea.lista=true}
+  guardaCart();pintaCart();
+}
+function pintaCart(){
+  const ul=$("cart");ul.replaceChildren();let total=0,listo=cart.length>0;
+  for(const c of cart){
+    const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+    const n=document.createElement("div");n.className="n";n.textContent=c.parte;
+    const w=document.createElement("div");w.className="w";w.textContent=c.descripcion||"";
+    const e=document.createElement("div");e.className="w";
+    e.textContent=c.exist==null?"":c.exist<0?"No registrada: se dará de alta al vender":c.exist<c.cantidad?"Solo hay "+c.exist+" en "+c.anaquel+": revise existencia":"Hay "+c.exist+" en "+c.anaquel;
+    if(c.exist!=null&&(c.exist<0||c.exist<c.cantidad))e.style.color="var(--warn)";
+    p.append(n,w,e);
+    const imp=document.createElement("div");imp.className="q";imp.textContent=c.precio!=null?$$(c.precio*c.cantidad):"—";
+    const d=document.createElement("div");d.className="sal";
+    const menos=btn("−",()=>{c.cantidad=Math.max(1,c.cantidad-1);guardaCart();pintaCart()});
+    const q=document.createElement("input");q.type="number";q.inputMode="numeric";q.min=1;q.value=c.cantidad;q.setAttribute("aria-label","Cantidad de "+c.parte);
+    q.onchange=()=>{c.cantidad=Math.max(1,Math.floor(Number(q.value)||1));guardaCart();setTimeout(pintaCart,0)};
+    const mas=btn("+",()=>{c.cantidad++;guardaCart();pintaCart()});
+    d.append(menos,q,mas);
+    if(c.lista){const s=document.createElement("span");s.className="w";s.textContent=$$(c.precio)+" c/u";d.append(s)}
+    else{const pi=document.createElement("input");pi.type="number";pi.inputMode="decimal";pi.min=0;pi.step="0.01";pi.placeholder="Precio";pi.value=c.precio??"";pi.style.width="120px";pi.setAttribute("aria-label","Precio de "+c.parte);
+      pi.onchange=()=>{c.precio=pi.value===""?null:Math.max(0,Math.round(Number(pi.value)*100)/100);guardaCart();setTimeout(pintaCart,0)};d.append(pi)}
+    d.append(btn("Quitar",()=>{cart=cart.filter(x=>x!==c);guardaCart();pintaCart()}));
+    li.append(p,imp,d);ul.append(li);
+    if(c.precio==null)listo=false;else total+=c.precio*c.cantidad;
+  }
+  $("vtotal").textContent=$$(total);$("vempty").hidden=cart.length>0;
+  const b=$("cobrar");b.disabled=!listo;b.dataset.paso="";b.textContent=cart.length&&!listo?"FALTA PRECIO EN ALGUNA PIEZA":"COBRAR "+$$(total);
+  $("tvnd").textContent=cart.length?"Vender ("+cart.reduce((a,c)=>a+c.cantidad,0)+")":"Vender";
+}
+$("vadd").addEventListener("submit",ev=>{ev.preventDefault();const v=$("vparte").value;if(norm(v)){alCarrito(v);$("vparte").value="";$("vparte").focus()}});
+$("vaciar").onclick=()=>{cart=[];guardaCart();pintaCart();vsay()};
+$("cobrar").onclick=async()=>{
+  const b=$("cobrar");if(!cart.length)return;
+  if(b.dataset.paso!=="ok"){b.dataset.paso="ok";b.textContent="CONFIRMAR COBRO";return}
+  b.disabled=true;vsay();
+  const items=cart.map(c=>({parte:c.parte,cantidad:c.cantidad,precio:c.precio,descripcion:c.descripcion}));
+  const {data,error}=await sb.rpc("registrar_venta",{p_items:items,p_cliente_nombre:$("vcliente").value.trim()||null});
+  if(error){b.disabled=false;b.dataset.paso="";pintaCart();vsay("err",falta(error)?FALTAV:(error.message&&!/fetch|network/i.test(error.message)?error.message:"No se pudo registrar la venta. Revise la conexión."));return}
+  cart=[];guardaCart();$("vcliente").value="";pintaCart();await verTicket(data);ventasHoy();
+};
+async function cargaCfg(){const {data}=await sb.from("config").select("clave,valor");cfg={};for(const r of data||[])cfg[r.clave]=r.valor}
+async function verTicket(id){
+  const [v,i]=await Promise.all([sb.from("ventas").select("*").eq("id",id).single(),sb.from("venta_items").select("*").eq("venta",id).order("id")]);
+  if(v.error||i.error){vsay("err","La venta "+id+" se registró, pero no se pudo mostrar el ticket.");return}
+  if(!cfg.negocio)await cargaCfg();
+  ventaHecha={v:v.data,i:i.data};
+  const t=$("ticket");t.replaceChildren();const ln=(txt,cls)=>{const d=document.createElement("div");if(cls)d.className=cls;d.textContent=txt;t.append(d);return d};
+  ln(cfg.negocio||"JMR Refacciones & Servicios Automotrices","tneg");if(cfg.direccion)ln(cfg.direccion,"tc");if(cfg.telefono)ln("Tel. "+cfg.telefono,"tc");
+  ln("Ticket "+String(id).padStart(5,"0")+(v.data.estado==="cancelada"?" · CANCELADO":""),"tc tb");
+  ln(new Date(v.data.fecha).toLocaleString("es-MX",{dateStyle:"medium",timeStyle:"short"}),"tc");
+  ln("Atendió: "+(names[v.data.usuario]||""),"tc");if(v.data.cliente_nombre)ln("Cliente: "+v.data.cliente_nombre,"tc");
+  ln("","thr");
+  for(const r of i.data){ln(r.parte+(r.descripcion?" "+r.descripcion:""),"tb");const row=document.createElement("div");row.className="trow";
+    const a=document.createElement("span");a.textContent=r.cantidad+" x "+$$(r.precio);const b2=document.createElement("span");b2.textContent=$$(r.cantidad*r.precio);row.append(a,b2);t.append(row)}
+  ln("","thr");const tot=document.createElement("div");tot.className="trow ttot";const a1=document.createElement("span");a1.textContent="TOTAL";const b1=document.createElement("span");b1.textContent=$$(v.data.total);tot.append(a1,b1);t.append(tot);
+  ln(cfg.pie_ticket||"","tc tpie");
+  $("vcaja").hidden=true;$("vtick").hidden=false;window.scrollTo({top:0});
+}
+function textoTicket(){if(!ventaHecha)return"";const {v,i}=ventaHecha;
+  return [(cfg.negocio||"JMR"),"Ticket "+String(v.id).padStart(5,"0"),new Date(v.fecha).toLocaleString("es-MX",{dateStyle:"medium",timeStyle:"short"}),""]
+    .concat(i.map(r=>r.cantidad+" x "+r.parte+(r.descripcion?" "+r.descripcion:"")+"  "+$$(r.cantidad*r.precio)),["","TOTAL "+$$(v.total),cfg.pie_ticket||""]).join("\n")}
+$("timp").onclick=()=>window.print();
+$("tcomp").onclick=async()=>{const text=textoTicket();try{if(navigator.share){await navigator.share({text});return}}catch(e){if(e&&e.name==="AbortError")return}
+  try{await navigator.clipboard.writeText(text);$("tcomp").textContent="Copiado";setTimeout(()=>$("tcomp").textContent="Compartir",1500)}catch(e){}};
+$("tnueva").onclick=()=>{$("vtick").hidden=true;$("vcaja").hidden=false;$("vparte").focus()};
+async function ventasHoy(){
+  if(!sb||!uid)return;const d=new Date();d.setHours(0,0,0,0);
+  const {data,error}=await sb.from("ventas").select("id,fecha,total,estado,cliente_nombre,usuario").gte("fecha",d.toISOString()).order("id",{ascending:false}).limit(200);
+  const ul=$("vhoy");ul.replaceChildren();
+  if(error){$("vhoyh").textContent=falta(error)?FALTAV:"No se pudieron cargar las ventas.";$("vhoyc").textContent="";return}
+  const ok=data.filter(v=>v.estado==="cerrada");
+  $("vhoyc").textContent=ok.length?ok.length+(ok.length===1?" venta · ":" ventas · ")+$$(ok.reduce((a,v)=>a+Number(v.total),0)):"";
+  $("vhoyh").textContent=data.length?"":"Todavía no hay ventas hoy.";
+  for(const v of data){const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+    const n=document.createElement("div");n.className="n";n.textContent="Ticket "+String(v.id).padStart(5,"0")+(v.estado==="cancelada"?" · cancelado":"");
+    const w=document.createElement("div");w.className="w";w.textContent=[new Date(v.fecha).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}),names[v.usuario]||"",v.cliente_nombre||""].filter(Boolean).join(" · ");
+    p.append(n,w);const q=document.createElement("div");q.className="q";q.textContent=$$(v.total);
+    li.append(p,q,btn("Ver",()=>verTicket(v.id)));ul.append(li)}
+}
+pintaCart();
+
 // ---- Actualización automática ----
-const VER="15";
+const VER="16";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
