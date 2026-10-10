@@ -232,6 +232,7 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
     </form>
     <p class="hint">También puede agregar piezas desde Buscar con el botón «＋ Venta».</p>
     <ul id="cart"></ul>
+    <div class="msg dup" id="credbox" hidden></div>
     <p class="empty" id="vempty">La venta está vacía.</p>
     <div class="listhead"><h2>Total</h2><span id="vtotal" style="font-family:var(--f-mono);font-size:28px;font-weight:700">$0.00</span></div>
     <div><label class="lbl" for="vcliente">Cliente (opcional)</label><input id="vcliente" type="text" maxlength="80" autocomplete="off"></div>
@@ -241,12 +242,28 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   </section>
   <section class="panel">
     <div class="listhead"><h2>Ventas de hoy</h2><span class="count" id="vhoyc"></span></div>
+    <form id="tbusq" class="qty" autocomplete="off"><input id="tnum" type="number" inputmode="numeric" min="1" placeholder="Buscar ticket por número" aria-label="Número de ticket" style="font-size:17px;text-align:left"><button type="submit" style="width:auto;font-size:16px">Ver</button></form>
     <p class="hint" id="vhoyh"></p>
     <ul id="vhoy"></ul>
   </section>
   </div>
   <section class="panel" id="vtick" hidden>
     <div id="ticket"></div>
+    <p class="hint" id="devhist" hidden></p>
+    <button type="button" id="devbtn" hidden>Devolución o cambio</button>
+    <div id="devp" style="display:grid;gap:10px" hidden>
+      <div class="listhead"><h2>Devolución</h2><span class="count">elija piezas</span></div>
+      <ul id="devl"></ul>
+      <div><label class="lbl" for="devmot">Motivo</label><input id="devmot" type="text" maxlength="120" autocomplete="off" placeholder="No era la pieza, no quedó, dañada…"></div>
+      <div class="listhead"><h2>A favor del cliente</h2><span id="devtot" style="font-family:var(--f-mono);font-size:24px;font-weight:700">$0.00</span></div>
+      <button class="main" type="button" id="devok" disabled>REGISTRAR DEVOLUCIÓN</button>
+      <button type="button" id="devno">Cancelar</button>
+    </div>
+    <div id="devfin" style="display:grid;gap:10px" hidden>
+      <div class="msg ok" id="devfint"></div>
+      <div class="qty"><button type="button" id="devdin" style="width:auto;flex:1;font-size:16px">Regresé el dinero</button><button type="button" id="devcam" style="width:auto;flex:1;font-size:16px">Cambiar por otra pieza</button></div>
+    </div>
+    <div class="msg err" id="devmsg" hidden></div>
     <button class="main" type="button" id="timp">IMPRIMIR TICKET</button>
     <div class="qty"><button type="button" id="tcomp" style="width:auto;flex:1;font-size:16px">Compartir</button><button type="button" id="tnueva" style="width:auto;flex:1;font-size:16px">Nueva venta</button></div>
   </section>
@@ -626,7 +643,9 @@ async function catBuscar(more){
 }
 
 // ---- Vender ----
-let cart=[],cfg={},ventaHecha=null;
+let cart=[],cfg={},ventaHecha=null,cred=null,dev=null;
+try{cred=JSON.parse(localStorage.getItem("cambio")||"null")}catch(e){cred=null}
+function guardaCred(){try{cred?localStorage.setItem("cambio",JSON.stringify(cred)):localStorage.removeItem("cambio")}catch(e){}}
 const $$=n=>"$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2});
 const falta=e=>e&&(e.code==="PGRST202"||e.code==="42883"||e.code==="PGRST205"||e.code==="42P01");
 const FALTAV="Falta activar las ventas en la base. Avise a Juan Luis.";
@@ -670,11 +689,16 @@ function pintaCart(){
     if(c.precio==null)listo=false;else total+=c.precio*c.cantidad;
   }
   $("vtotal").textContent=$$(total);$("vempty").hidden=cart.length>0;
-  const b=$("cobrar");b.disabled=!listo;b.dataset.paso="";b.textContent=cart.length&&!listo?"FALTA PRECIO EN ALGUNA PIEZA":"COBRAR "+$$(total);
+  const cb=$("credbox");cb.hidden=!cred;cb.replaceChildren();const dif=cred?Math.round((total-cred.monto)*100)/100:total;
+  if(cred){cb.append("Cambio: el cliente tiene "+$$(cred.monto)+" a favor por la devolución "+cred.id+" (ticket "+String(cred.venta).padStart(5,"0")+"). "+(cart.length?(dif>=0?"Diferencia a cobrar: "+$$(dif)+".":"Hay que regresarle "+$$(-dif)+"."):"Agregue la pieza que se lleva.")+" ");
+    cb.append(btn("Quitar cambio",()=>{cred=null;guardaCred();pintaCart()}))}
+  const b=$("cobrar");b.disabled=!listo;b.dataset.paso="";b.textContent=cart.length&&!listo?"FALTA PRECIO EN ALGUNA PIEZA":!cred?"COBRAR "+$$(total):dif>=0?"COBRAR DIFERENCIA "+$$(dif):"REGISTRAR Y REGRESAR "+$$(-dif);
   $("tvnd").textContent=cart.length?"Vender ("+cart.reduce((a,c)=>a+c.cantidad,0)+")":"Vender";
 }
 $("vadd").addEventListener("submit",ev=>{ev.preventDefault();const v=$("vparte").value;if(norm(v)){alCarrito(v);$("vparte").value="";$("vparte").focus()}});
 $("vaciar").onclick=()=>{cart=[];guardaCart();pintaCart();vsay()};
+$("tbusq").addEventListener("submit",async ev=>{ev.preventDefault();const n=Math.floor(Number($("tnum").value));if(!(n>0))return;
+  const {data}=await sb.from("ventas").select("id").eq("id",n).maybeSingle();if(!data){$("vhoyh").textContent="No existe el ticket "+n+".";return}$("tnum").value="";verTicket(n)});
 $("cobrar").onclick=async()=>{
   const b=$("cobrar");if(!cart.length)return;
   if(b.dataset.paso!=="ok"){b.dataset.paso="ok";b.textContent="CONFIRMAR COBRO";return}
@@ -682,6 +706,7 @@ $("cobrar").onclick=async()=>{
   const items=cart.map(c=>({parte:c.parte,cantidad:c.cantidad,precio:c.precio,descripcion:c.descripcion}));
   const {data,error}=await sb.rpc("registrar_venta",{p_items:items,p_cliente_nombre:$("vcliente").value.trim()||null});
   if(error){b.disabled=false;b.dataset.paso="";pintaCart();vsay("err",falta(error)?FALTAV:(error.message&&!/fetch|network/i.test(error.message)?error.message:"No se pudo registrar la venta. Revise la conexión."));return}
+  if(cred){try{await sb.rpc("ligar_cambio",{p_devolucion:cred.id,p_venta:data})}catch(e){}cred=null;guardaCred()}
   cart=[];guardaCart();$("vcliente").value="";pintaCart();await verTicket(data);ventasHoy();
 };
 async function cargaCfg(){const {data}=await sb.from("config").select("clave,valor");cfg={};for(const r of data||[])cfg[r.clave]=r.valor}
@@ -699,12 +724,41 @@ async function verTicket(id){
   for(const r of i.data){ln(r.parte+(r.descripcion?" "+r.descripcion:""),"tb");const row=document.createElement("div");row.className="trow";
     const a=document.createElement("span");a.textContent=r.cantidad+" x "+$$(r.precio);const b2=document.createElement("span");b2.textContent=$$(r.cantidad*r.precio);row.append(a,b2);t.append(row)}
   ln("","thr");const tot=document.createElement("div");tot.className="trow ttot";const a1=document.createElement("span");a1.textContent="TOTAL";const b1=document.createElement("span");b1.textContent=$$(v.data.total);tot.append(a1,b1);t.append(tot);
+  const ids=i.data.map(r=>r.id);let cm=null,di=[];
+  try{const [c2,d2]=await Promise.all([sb.from("devoluciones").select("id,monto,venta").eq("cambio_venta",id).maybeSingle(),ids.length?sb.from("devolucion_items").select("item,parte,cantidad,destino").in("item",ids):Promise.resolve({data:[]})]);cm=c2.data;di=d2.data||[]}catch(e){}
+  const fila=(x,y,cls)=>{const r=document.createElement("div");r.className="trow"+(cls?" "+cls:"");const a=document.createElement("span");a.textContent=x;const b=document.createElement("span");b.textContent=y;r.append(a,b);t.append(r)};
+  if(cm){const df=Math.round((Number(v.data.total)-Number(cm.monto))*100)/100;fila("A favor (devol. ticket "+String(cm.venta).padStart(5,"0")+")","-"+$$(cm.monto));fila(df>=0?"PAGÓ DIFERENCIA":"SE LE REGRESÓ",$$(Math.abs(df)),"ttot")}
+  ventaHecha.cm=cm;
   ln(cfg.pie_ticket||"","tc tpie");
+  const dv={};for(const d of di)dv[d.item]=(dv[d.item]||0)+d.cantidad;
+  const h=$("devhist");h.hidden=!di.length;h.textContent=di.length?"Ya devuelto de este ticket: "+di.map(d=>d.cantidad+" x "+d.parte+(d.destino==="garantia"?" (garantía)":" (al anaquel)")).join(", ")+".":"";
+  dev={venta:id,items:i.data.map(r=>({id:r.id,parte:r.parte,descripcion:r.descripcion,precio:Number(r.precio),max:r.cantidad-(dv[r.id]||0),n:0,destino:"anaquel"})).filter(r=>r.max>0)};
+  $("devbtn").hidden=!(precios&&v.data.estado==="cerrada"&&dev.items.length);$("devp").hidden=true;$("devfin").hidden=true;$("devmsg").hidden=true;
   $("vcaja").hidden=true;$("vtick").hidden=false;window.scrollTo({top:0});
 }
 function textoTicket(){if(!ventaHecha)return"";const {v,i}=ventaHecha;
   return [(cfg.negocio||"JMR"),"Ticket "+String(v.id).padStart(5,"0"),new Date(v.fecha).toLocaleString("es-MX",{dateStyle:"medium",timeStyle:"short"}),""]
     .concat(i.map(r=>r.cantidad+" x "+r.parte+(r.descripcion?" "+r.descripcion:"")+"  "+$$(r.cantidad*r.precio)),["","TOTAL "+$$(v.total),cfg.pie_ticket||""]).join("\n")}
+function pintaDev(){const ul=$("devl");ul.replaceChildren();let tot=0;
+  for(const r of dev.items){const li=document.createElement("li"),p=document.createElement("div");p.className="p";
+    const n=document.createElement("div");n.className="n";n.textContent=r.parte;const w=document.createElement("div");w.className="w";w.textContent=(r.descripcion?r.descripcion+" · ":"")+$$(r.precio)+" c/u · puede devolver "+r.max;p.append(n,w);
+    const q=document.createElement("div");q.className="q";q.textContent=String(r.n);
+    const d=document.createElement("div");d.className="sal";
+    d.append(btn("−",()=>{r.n=Math.max(0,r.n-1);pintaDev()}),btn("+",()=>{r.n=Math.min(r.max,r.n+1);pintaDev()}));
+    const sel=document.createElement("select");sel.setAttribute("aria-label","Destino de "+r.parte);[["anaquel","Regresa al anaquel"],["garantia","Dañada: a garantía"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.append(o)});sel.value=r.destino;sel.style.cssText="flex:1;min-width:150px;min-height:42px";sel.onchange=()=>{r.destino=sel.value};
+    d.append(sel);li.append(p,q,d);ul.append(li);tot+=r.n*r.precio}
+  $("devtot").textContent=$$(tot);const b=$("devok");b.disabled=!(tot>0||dev.items.some(r=>r.n>0));b.dataset.paso="";b.textContent="REGISTRAR DEVOLUCIÓN";}
+$("devbtn").onclick=()=>{$("devbtn").hidden=true;$("devp").hidden=false;$("devmot").value="";pintaDev();$("devp").scrollIntoView({behavior:"smooth"})};
+$("devno").onclick=()=>{$("devp").hidden=true;$("devbtn").hidden=false};
+$("devok").onclick=async()=>{const b=$("devok"),m=$("devmsg");m.hidden=true;
+  if(b.dataset.paso!=="ok"){b.dataset.paso="ok";b.textContent="CONFIRMAR DEVOLUCIÓN";return}
+  b.disabled=true;const its=dev.items.filter(r=>r.n>0).map(r=>({item:r.id,cantidad:r.n,destino:r.destino})),monto=dev.items.reduce((a,r)=>a+r.n*r.precio,0),venta=dev.venta;
+  const {data,error}=await sb.rpc("registrar_devolucion",{p_venta:venta,p_items:its,p_motivo:$("devmot").value.trim()||null});
+  if(error){b.disabled=false;b.dataset.paso="";b.textContent="REGISTRAR DEVOLUCIÓN";m.textContent=falta(error)?FALTAV:(error.message&&!/fetch|network/i.test(error.message)?error.message:"No se pudo registrar la devolución. Revise la conexión.");m.hidden=false;return}
+  await verTicket(venta);dev.hecha={id:data,monto,venta};
+  $("devbtn").hidden=true;$("devfint").textContent="Devolución "+data+" registrada. El cliente tiene "+$$(monto)+" a favor: regrese el dinero o cámbielo por otra pieza.";$("devfin").hidden=false;$("devfin").scrollIntoView({behavior:"smooth"});ventasHoy()};
+$("devdin").onclick=()=>{$("devfin").hidden=true;$("vtick").hidden=true;$("vcaja").hidden=false};
+$("devcam").onclick=()=>{cred=dev.hecha;guardaCred();$("devfin").hidden=true;$("vtick").hidden=true;$("vcaja").hidden=false;pintaCart();$("vparte").focus();window.scrollTo({top:0})};
 $("timp").onclick=()=>window.print();
 $("tcomp").onclick=async()=>{const text=textoTicket();try{if(navigator.share){await navigator.share({text});return}}catch(e){if(e&&e.name==="AbortError")return}
   try{await navigator.clipboard.writeText(text);$("tcomp").textContent="Copiado";setTimeout(()=>$("tcomp").textContent="Compartir",1500)}catch(e){}};
@@ -714,9 +768,10 @@ async function ventasHoy(){
   const {data,error}=await sb.from("ventas").select("id,fecha,total,estado,cliente_nombre,usuario").gte("fecha",d.toISOString()).order("id",{ascending:false}).limit(200);
   const ul=$("vhoy");ul.replaceChildren();
   if(error){$("vhoyh").textContent=falta(error)?FALTAV:"No se pudieron cargar las ventas.";$("vhoyc").textContent="";return}
-  const ok=data.filter(v=>v.estado==="cerrada");
-  $("vhoyc").textContent=ok.length?ok.length+(ok.length===1?" venta · ":" ventas · ")+$$(ok.reduce((a,v)=>a+Number(v.total),0)):"";
-  $("vhoyh").textContent=data.length?"":"Todavía no hay ventas hoy.";
+  const ok=data.filter(v=>v.estado==="cerrada"),tv=ok.reduce((a,v)=>a+Number(v.total),0);let td=0,nd=0;
+  try{const r=await sb.from("devoluciones").select("monto").gte("fecha",d.toISOString());for(const x of r.data||[]){td+=Number(x.monto);nd++}}catch(e){}
+  $("vhoyc").textContent=ok.length?ok.length+(ok.length===1?" venta · ":" ventas · ")+$$(tv):"";
+  $("vhoyh").textContent=(data.length?"":"Todavía no hay ventas hoy. ")+(nd?"Devoluciones de hoy: "+nd+" por "+$$(td)+". Neto del día: "+$$(tv-td)+".":"");
   for(const v of data){const li=document.createElement("li"),p=document.createElement("div");p.className="p";
     const n=document.createElement("div");n.className="n";n.textContent="Ticket "+String(v.id).padStart(5,"0")+(v.estado==="cancelada"?" · cancelado":"");
     const w=document.createElement("div");w.className="w";w.textContent=[new Date(v.fecha).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}),names[v.usuario]||"",v.cliente_nombre||""].filter(Boolean).join(" · ");
@@ -726,7 +781,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="18";
+const VER="19";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
