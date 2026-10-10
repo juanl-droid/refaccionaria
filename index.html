@@ -92,7 +92,20 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .who{font-size:14px;color:var(--mute);display:flex;gap:10px;align-items:center}
 .who button{min-height:38px;font-size:14px;padding:0 12px}
+.conc{display:flex;gap:8px}.conc input{flex:1;min-width:0}.camk{width:56px;flex:none;font-size:22px;padding:0}
+.cam{position:fixed;inset:0;z-index:60;background:#000;color:#fff;display:flex;flex-direction:column}
+.camv{position:relative;flex:1;min-height:0;overflow:hidden}.camv video{width:100%;height:100%;object-fit:cover;display:block}
+.guia{position:absolute;left:6%;right:6%;top:50%;height:110px;margin-top:-55px;border:3px solid #fff;border-radius:8px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);pointer-events:none}
+.camb{background:#16231b;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));display:grid;gap:10px}
+.camb p{margin:0;font-size:16px}.camops{display:flex;gap:8px;flex-wrap:wrap}
+.camops button{font-family:var(--f-mono);font-size:20px;background:#fff;color:#16231b;border-color:#fff;min-height:54px}
+.camb .row{margin-top:0}.camb .row button{flex:1;background:#24352b;color:#fff;border-color:#3d5547}.camb .row .pri{background:var(--accent);border-color:var(--accent)}
 [hidden]{display:none!important}body{margin:0}</style>
+<div id="cam" class="cam" hidden role="dialog" aria-label="Leer con la cámara">
+  <div class="camv"><video id="camvid" playsinline muted autoplay></video><div class="guia" id="camguia"></div></div>
+  <div class="camb"><p id="cammsg" aria-live="polite"></p><div class="camops" id="camops"></div>
+    <div class="row"><button type="button" class="pri" id="camleer">Leer número impreso</button><button type="button" id="camotra" hidden>Leer otro código</button><button type="button" id="camcerrar">Cerrar</button></div></div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head><body>
 <div class="wrap">
@@ -133,7 +146,9 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   <form class="panel" id="form" autocomplete="off">
     <div>
       <label class="lbl" for="parte">Número de parte</label>
-      <input id="parte" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="GDB2196" required>
+      <div class="conc"><input id="parte" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="GDB2196" required>
+      <button type="button" class="camk" id="camcap" aria-label="Leer con la cámara">📷</button></div>
+      <p class="hint" id="camnota" hidden></p>
       <p class="cat miss" id="cat">Completo, con sufijos y sin la marca al inicio.</p>
     </div>
     <div>
@@ -212,6 +227,7 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   <section class="panel">
     <form id="vadd" class="qty" autocomplete="off">
       <input id="vparte" inputmode="text" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Número de parte" aria-label="Número de parte para vender">
+      <button type="button" id="camvnd" aria-label="Leer con la cámara" style="font-size:22px;padding:0">📷</button>
       <button type="submit" style="width:auto;font-size:16px">Agregar</button>
     </form>
     <p class="hint">También puede agregar piezas desde Buscar con el botón «＋ Venta».</p>
@@ -334,6 +350,7 @@ $("form").addEventListener("submit",async ev=>{
   $("guardar").disabled=true;
   const {error}=await sb.from("piezas").insert({parte:p,cantidad:q,anaquel:s,capturo:uid});
   $("guardar").disabled=false;
+  if(!error||error.code==="23505")camLigar(p);
   if(!error){
     await mov(p,q,q,s,"levantamiento");
     say("ok",m=>txt(m,["Guardada ",{b:p}," · ",{b:String(q)}," pieza(s) en ",{b:s},"."]));reset();cargar();return;
@@ -709,7 +726,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="17";
+const VER="18";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
@@ -717,5 +734,67 @@ $("ver").textContent="Versión "+VER;
 
 const s0=shelf();$("plate").textContent=s0;$("enplate").textContent=s0;$("lplate").textContent=s0;
 if(sb)sb.auth.getSession().then(({data})=>{if(!data.session)$("login").hidden=false});
+
+// ---- Cámara: código de barras o número impreso ----
+const ZX_URL="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js",TS_URL="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+let camS=null,camT=null,camIn=null,camPend=null,camZ=null,camW=null,camBD=null,camBusy=false;
+const camCv=document.createElement("canvas");
+function camScript(src){return new Promise((ok,no)=>{const e=document.createElement("script");e.src=src;e.onload=ok;e.onerror=no;document.head.append(e)})}
+function camMsg(t){$("cammsg").textContent=t}
+function camOps(list){const o=$("camops");o.replaceChildren();list.forEach(v=>{const b=document.createElement("button");b.type="button";b.textContent=v;b.addEventListener("click",()=>camPoner(v));o.append(b)})}
+function camNota(){const n=$("camnota");n.replaceChildren();n.hidden=!camPend;if(!camPend)return;
+  n.append("Al guardar, el código de barras "+camPend+" quedará ligado a esta pieza. ");const b=document.createElement("button");b.type="button";b.textContent="No ligar";b.style.cssText="min-height:32px;font-size:13px;padding:0 10px";b.addEventListener("click",()=>{camPend=null;camNota()});n.append(b)}
+async function camLigar(p){if(!camPend)return;const c=camPend;camPend=null;camNota();try{await sb.from("codigos").upsert({codigo:c,parte:p,usuario:uid})}catch(e){}}
+async function camMotor(){
+  if(camBD||camZ)return;
+  if("BarcodeDetector" in window){try{camBD=new BarcodeDetector()}catch(e){camBD=null}}
+  if(!camBD){try{if(!window.ZXing)await camScript(ZX_URL);const h=new Map();h.set(ZXing.DecodeHintType.TRY_HARDER,true);camZ=new ZXing.MultiFormatReader();camZ.setHints(h)}catch(e){camZ=null}}}
+async function camCodigoDe(cv){
+  if(camBD){try{const r=await camBD.detect(cv);if(r&&r[0])return r[0].rawValue}catch(e){}return null}
+  if(camZ){try{return camZ.decodeWithState(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(cv)))).getText()}catch(e){return null}}
+  return null}
+function camCuadro(soloGuia){const v=$("camvid"),vw=v.videoWidth,vh=v.videoHeight;if(!vw)return null;
+  let sx=0,sy=0,sw=vw,sh=vh;
+  if(soloGuia){const b=v.getBoundingClientRect(),g=$("camguia").getBoundingClientRect(),k=Math.max(b.width/vw,b.height/vh),ox=(vw*k-b.width)/2,oy=(vh*k-b.height)/2;
+    sx=Math.max(0,(g.left-b.left+ox)/k);sy=Math.max(0,(g.top-b.top+oy)/k);sw=Math.min(vw-sx,g.width/k);sh=Math.min(vh-sy,g.height/k)}
+  const f=soloGuia?Math.min(3,Math.max(1,1400/sw)):Math.min(1,1280/sw);
+  camCv.width=Math.round(sw*f);camCv.height=Math.round(sh*f);camCv.getContext("2d",{willReadFrequently:true}).drawImage(v,sx,sy,sw,sh,0,0,camCv.width,camCv.height);return camCv}
+async function camTick(){if(camBusy||$("cam").hidden)return;const cv=camCuadro(false);if(!cv)return;camBusy=true;
+  try{const c=await camCodigoDe(cv);if(c)await camHallado(String(c).trim())}finally{camBusy=false}}
+function camSigue(on){clearInterval(camT);camT=on?setInterval(camTick,350):null;$("camotra").hidden=on}
+async function camHallado(v){camSigue(false);if(navigator.vibrate)navigator.vibrate(60);
+  let lig=null;try{const {data}=await sb.from("codigos").select("parte").eq("codigo",v).maybeSingle();lig=data&&data.parte}catch(e){}
+  if(lig){camMsg("Código de barras reconocido. Toque el número para usarlo:");camOps([lig]);return}
+  if(/^\d{8,14}$/.test(v)){
+    if(camIn===$("parte")){camPend=v;camMsg("Código de barras nuevo ("+v+"). Ahora ponga el número de parte impreso dentro del recuadro y toque «Leer número impreso», o cierre y escríbalo. La app recordará este código.")}
+    else camMsg("Este código de barras ("+v+") aún no está ligado a una pieza. Lea el número impreso o escríbalo. Para ligarlo, captúrelo una vez en «Capturar».");
+    camOps([]);return}
+  camMsg("Código leído. Revise y toque para usarlo:");camOps([norm(v)])}
+function camTokens(t){const out=[];(String(t).toUpperCase().match(/[A-Z0-9][A-Z0-9\-./]{2,19}/g)||[]).forEach(w=>{w=w.replace(/[\-./]+$/,"");if(w.length>=3&&/\d/.test(w)&&!out.includes(w))out.push(w)});
+  return out.sort((a,b)=>b.length-a.length).slice(0,6)}
+async function camOcr(cv){
+  if(!window.Tesseract)await camScript(TS_URL);
+  if(!camW){camW=await Tesseract.createWorker("eng");await camW.setParameters({tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-./ ",tessedit_pageseg_mode:"11"})}
+  const {data}=await camW.recognize(cv);return camTokens(data.text)}
+async function camLeer(){if(camBusy)return;const cv=camCuadro(true);if(!cv)return;camBusy=true;$("camleer").disabled=true;camOps([]);
+  camMsg(camW?"Leyendo…":"Preparando el lector (la primera vez tarda unos segundos)…");
+  try{const t=await camOcr(cv);
+    if(t.length){camMsg("Esto alcancé a leer. Compare con la etiqueta y toque el correcto:");camOps(t)}
+    else camMsg("No alcancé a leer un número. Acerque la etiqueta al recuadro, que esté enfocada y sin reflejos, y vuelva a intentar.")}
+  catch(e){camMsg("No se pudo cargar el lector de texto. Revise el internet e intente otra vez.")}
+  finally{camBusy=false;$("camleer").disabled=false}}
+function camPoner(p){const i=camIn;camCerrar();if(!i)return;i.value=p;i.dispatchEvent(new Event("input"));
+  if(i===$("parte")){camNota();$("cant").focus();$("cant").select()}else if(i.form&&i.form.requestSubmit)i.form.requestSubmit()}
+function camCerrar(){clearInterval(camT);camT=null;if(camS){camS.getTracks().forEach(t=>t.stop());camS=null}$("camvid").srcObject=null;$("cam").hidden=true;if(camIn===$("parte"))camNota()}
+async function camAbrir(inp){camIn=inp;camPend=null;camNota();camOps([]);$("cam").hidden=false;camMsg("Abriendo la cámara…");
+  try{camS=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false})}
+  catch(e){camMsg("No se pudo abrir la cámara. Dé permiso de cámara a la app en los ajustes del teléfono y vuelva a intentar.");return}
+  const v=$("camvid");v.srcObject=camS;try{await v.play()}catch(e){}
+  await camMotor();
+  camMsg((camBD||camZ)?"Apunte al código de barras y se lee solo. Si la pieza no trae, ponga el número impreso dentro del recuadro y toque «Leer número impreso».":"Ponga el número impreso dentro del recuadro y toque «Leer número impreso».");
+  camSigue(!!(camBD||camZ));$("camotra").hidden=true}
+$("camcap").addEventListener("click",()=>camAbrir($("parte")));$("camvnd").addEventListener("click",()=>camAbrir($("vparte")));
+$("camleer").addEventListener("click",camLeer);$("camcerrar").addEventListener("click",camCerrar);
+$("camotra").addEventListener("click",()=>{camOps([]);camMsg("Apunte al código de barras.");camSigue(true)});
 </script>
 </body></html>
