@@ -563,7 +563,7 @@ async function catBuscar(more){
 }
 
 // ---- Actualización automática ----
-const VER="11";
+const VER="12";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
