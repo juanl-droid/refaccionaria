@@ -502,7 +502,18 @@ async function surtir(){
 
 // ---- Catálogos: buscar por pieza y vehículo ----
 let CD=null,cdP=null,cHay=null,cVoc=null,cLim=30,cn=0;
-function catLoad(){return cdP||(cdP=fetch("catalogo.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(d=>{CD=d;cHay=new Array(d.r.length);return d}).catch(e=>{cdP=null;throw e}))}
+const CATVER="2026-10-09";
+async function catFetch(){
+  const key=new Request("cat-"+CATVER);
+  try{const c=await caches.open("jmr-catalogo");const hit=await c.match(key);if(hit)return await hit.json()}catch(e){}
+  let txt=null;
+  try{if(sb&&uid&&window.DecompressionStream){const {data,error}=await sb.storage.from("catalogos").download("catalogo.json.gz");
+    if(!error&&data)txt=await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text()}}catch(e){txt=null}
+  if(txt===null){const r=await fetch("catalogo.json");if(!r.ok)throw 0;txt=await r.text()}
+  const d=JSON.parse(txt);
+  try{const c=await caches.open("jmr-catalogo");for(const k of await c.keys())await c.delete(k);await c.put(key,new Response(txt,{headers:{"content-type":"application/json"}}))}catch(e){}
+  return d}
+function catLoad(){return cdP||(cdP=catFetch().then(d=>{CD=d;cHay=new Array(d.r.length);return d}).catch(e=>{cdP=null;throw e}))}
 const cnorm=t=>String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9.\-]+/g," ").trim();
 const CGEN={delantera:"delanter",delantero:"delanter",delanteras:"delanter",delanteros:"delanter",trasera:"traser",trasero:"traser",traseras:"traser",traseros:"traser",izquierda:"izquierd",izquierdo:"izquierd",derecha:"derech",derecho:"derech"};
 const cstem=w=>{if(CGEN[w])return CGEN[w];if(/^[a-z]+$/.test(w)&&w.length>4){if(w.endsWith("es")&&!/[aeiou]es$/.test(w))return w.slice(0,-2);if(w.endsWith("s"))return w.slice(0,-1)}return w};
@@ -563,7 +574,7 @@ async function catBuscar(more){
 }
 
 // ---- Actualización automática ----
-const VER="14";
+const VER="15";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
