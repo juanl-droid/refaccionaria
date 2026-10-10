@@ -580,16 +580,18 @@ async function surtir(){
 
 // ---- Catálogos: buscar por pieza y vehículo ----
 let CD=null,cdP=null,cHay=null,cVoc=null,cLim=30,cn=0;
-const CATVER="2026-10-09b";
+const CATVER="2026-10-10";
 async function catFetch(){
   const key=new Request("cat-"+CATVER);
   try{const c=await caches.open("jmr-catalogo");const hit=await c.match(key);if(hit)return await hit.json()}catch(e){}
   let txt=null;
-  try{if(sb&&uid&&window.DecompressionStream){const {data,error}=await sb.storage.from("catalogos").download("catalogo.json.gz");
-    if(!error&&data)txt=await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text()}}catch(e){txt=null}
+  let nuevo=false;
+  if(sb&&uid&&window.DecompressionStream)for(const f of ["catalogo-"+CATVER+".json.gz","catalogo.json.gz"]){
+    try{const {data,error}=await sb.storage.from("catalogos").download(f);
+      if(!error&&data){txt=await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text();nuevo=f!=="catalogo.json.gz";break}}catch(e){txt=null}}
   if(txt===null)throw 0;
   const d=JSON.parse(txt);
-  try{const c=await caches.open("jmr-catalogo");for(const k of await c.keys())await c.delete(k);await c.put(key,new Response(txt,{headers:{"content-type":"application/json"}}))}catch(e){}
+  if(nuevo)try{const c=await caches.open("jmr-catalogo");for(const k of await c.keys())await c.delete(k);await c.put(key,new Response(txt,{headers:{"content-type":"application/json"}}))}catch(e){}
   return d}
 function catLoad(){return cdP||(cdP=catFetch().then(d=>{CD=d;cHay=new Array(d.r.length);return d}).catch(e=>{cdP=null;throw e}))}
 const cnorm=t=>String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9.\-]+/g," ").trim();
@@ -799,7 +801,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="23";
+const VER="24";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
