@@ -197,6 +197,7 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   </section>
   <section class="panel">
     <div class="listhead"><h2>En catálogos</h2><span class="count" id="ccount"></span></div>
+    <label class="hint" id="ctodow" hidden style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ctodo" style="width:22px;min-height:22px;flex:none"><span id="ctodot"></span></label>
     <p class="hint" id="chint">Escriba la pieza y el vehículo, por ejemplo: balatas delanteras hilux 2019.</p>
     <ul id="cres"></ul>
   </section>
@@ -623,12 +624,17 @@ async function catBuscar(more){
   const q=$("q").value,ul=$("cres"),h=$("chint"),n=++cn;if(!more)cLim=30;
   if(q.trim().length<3){ul.replaceChildren();h.textContent="Escriba la pieza y el vehículo, por ejemplo: balatas delanteras hilux 2019.";$("ccount").textContent="";return}
   if(!CD){h.textContent="Cargando catálogos (la primera vez tarda unos segundos)…";try{await catLoad()}catch(e){h.textContent="No se pudieron cargar los catálogos. Revise la conexión.";return}if(n!==cn)return}
-  const S=CD.s,R=CD.r,{res,fixes,sinAno}=csearch(q);
+  const S=CD.s,R=CD.r,cs=csearch(q),{fixes,sinAno}=cs;let res=cs.res,otros=0;
+  const qt=cparse(q).toks,t0=qt[0],tw={},tipoW=k=>tw[k]||(tw[k]=cnorm(S[k]).split(" ").filter(w=>!CSTOP.has(w)).map(cstem));
+  const sc=i=>{const w=tipoW(R[i][2]);let n=w[0]===t0?100:w.includes(t0)?10:0;for(const t of qt)if(w.includes(t))n++;return n};
+  if(t0&&!$("ctodo").checked){const pr=res.filter(i=>tipoW(R[i][2])[0]===t0);if(pr.length&&pr.length<res.length){otros=res.length-pr.length;res=pr}}
+  $("ctodow").hidden=!(otros||$("ctodo").checked);$("ctodot").textContent=otros?"Mostrar también "+otros.toLocaleString("es-MX")+" de otras piezas que solo lo mencionan":"Mostrando también otras piezas que lo mencionan";
+  const scv={};for(const i of res)scv[i]=sc(i);
   ul.replaceChildren();
   $("ccount").textContent=res.length?res.length.toLocaleString("es-MX")+(res.length===1?" aplicación":" aplicaciones"):"";
   if(!res.length){h.textContent="Ningún catálogo cargado trae esa combinación. Pruebe con menos palabras o sin el año. Pruebe con otro nombre de la pieza (por ejemplo «banda de tiempo» en lugar de «banda de distribución»).";return}
   h.textContent=(sinAno?"Los catálogos cargados no traen esa pieza para "+sinAno+". Se muestran otros años: revise si aplica. ":"")+(fixes.length?"Busqué "+fixes.join(", ")+". ":"")+"Datos de catálogo por validar: confirme el número antes de pedir.";
-  res.sort((a,b)=>{const x=R[a],y=R[b];return S[x[2]].localeCompare(S[y[2]])||S[x[4]].localeCompare(S[y[4]])||S[x[5]].localeCompare(S[y[5]])||(y[7]||0)-(x[7]||0)||S[x[1]].localeCompare(S[y[1]])});
+  res.sort((a,b)=>{const x=R[a],y=R[b];return scv[b]-scv[a]||S[x[2]].localeCompare(S[y[2]])||S[x[4]].localeCompare(S[y[4]])||S[x[5]].localeCompare(S[y[5]])||(y[7]||0)-(x[7]||0)||S[x[1]].localeCompare(S[y[1]])});
   const show=res.slice(0,cLim),slots={};
   for(const i of show){const r=R[i],parte=S[r[1]].toUpperCase().replace(/\s+/g,"");
     const li=document.createElement("li"),p=document.createElement("div");p.className="p";
@@ -793,7 +799,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="22";
+const VER="23";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
@@ -869,5 +875,6 @@ const PROVS=[["DRiV (Monroe, Moog, Wagner, Fel-Pro…)",()=>"http://www.fme-cat.
   ["CIOSA",q=>q?"https://www.ciosa.com/productosv2/resultados/"+encodeURIComponent(q):"https://www.ciosa.com/"],
   ["MorsaClick",()=>"https://multiclick.grupomorsa.com/#!/pedidos"]];
 PROVS.forEach(([n,f])=>{const b=btn(n,()=>window.open(f($("q").value.trim()),"_blank","noopener"));b.style.flex="1 1 auto";$("provs").append(b)});
+$("ctodo").addEventListener("change",()=>catBuscar());
 </script>
 </body></html>
