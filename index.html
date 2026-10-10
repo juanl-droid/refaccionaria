@@ -200,6 +200,11 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
     <p class="hint" id="chint">Escriba la pieza y el vehículo, por ejemplo: balatas delanteras hilux 2019.</p>
     <ul id="cres"></ul>
   </section>
+  <section class="panel">
+    <div class="listhead"><h2>Consultar con proveedores</h2></div>
+    <p class="hint">Abre la página del proveedor en otra pestaña. Lo que encuentre ahí, verifíquelo antes de pedir.</p>
+    <div class="row" id="provs" style="margin-top:0"></div>
+  </section>
   </div>
   <div id="vfic" class="vista" hidden>
   <form class="panel" id="ffic" autocomplete="off">
@@ -788,7 +793,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="21";
+const VER="22";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
@@ -858,5 +863,11 @@ async function camAbrir(inp){camIn=inp;camPend=null;camNota();camOps([]);$("cam"
 $("camcap").addEventListener("click",()=>camAbrir($("parte")));$("cambus").addEventListener("click",()=>camAbrir($("q")));$("camvnd").addEventListener("click",()=>camAbrir($("vparte")));
 $("camleer").addEventListener("click",camLeer);$("camcerrar").addEventListener("click",camCerrar);
 $("camotra").addEventListener("click",()=>{camOps([]);camMsg("Apunte al código de barras.");camSigue(true)});
+
+// ---- Consultar con proveedores ----
+const PROVS=[["DRiV (Monroe, Moog, Wagner, Fel-Pro…)",()=>"http://www.fme-cat.mx/catalogs.aspx"],
+  ["CIOSA",q=>q?"https://www.ciosa.com/productosv2/resultados/"+encodeURIComponent(q):"https://www.ciosa.com/"],
+  ["MorsaClick",()=>"https://multiclick.grupomorsa.com/#!/pedidos"]];
+PROVS.forEach(([n,f])=>{const b=btn(n,()=>window.open(f($("q").value.trim()),"_blank","noopener"));b.style.flex="1 1 auto";$("provs").append(b)});
 </script>
 </body></html>
