@@ -537,14 +537,14 @@ async function surtir(){
 
 // ---- Catálogos: buscar por pieza y vehículo ----
 let CD=null,cdP=null,cHay=null,cVoc=null,cLim=30,cn=0;
-const CATVER="2026-10-09";
+const CATVER="2026-10-09b";
 async function catFetch(){
   const key=new Request("cat-"+CATVER);
   try{const c=await caches.open("jmr-catalogo");const hit=await c.match(key);if(hit)return await hit.json()}catch(e){}
   let txt=null;
   try{if(sb&&uid&&window.DecompressionStream){const {data,error}=await sb.storage.from("catalogos").download("catalogo.json.gz");
     if(!error&&data)txt=await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text()}}catch(e){txt=null}
-  if(txt===null){const r=await fetch("catalogo.json");if(!r.ok)throw 0;txt=await r.text()}
+  if(txt===null)throw 0;
   const d=JSON.parse(txt);
   try{const c=await caches.open("jmr-catalogo");for(const k of await c.keys())await c.delete(k);await c.put(key,new Response(txt,{headers:{"content-type":"application/json"}}))}catch(e){}
   return d}
@@ -709,7 +709,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="16";
+const VER="17";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
