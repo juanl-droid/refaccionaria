@@ -177,7 +177,7 @@ li .cst{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   <section class="panel">
     <div>
       <label class="lbl" for="q">Buscar pieza</label>
-      <div class="conc"><input id="q" type="search" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="balatas hilux 2019 o número" autocomplete="off">
+      <div class="conc"><input id="q" type="search" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off">
       <button type="button" class="camk" id="cambus" aria-label="Buscar con la cámara">📷</button></div>
     </div>
     <div class="listhead"><h2>En mi inventario</h2></div>
@@ -801,7 +801,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="24";
+const VER="25";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
