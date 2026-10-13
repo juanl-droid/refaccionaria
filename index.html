@@ -586,9 +586,9 @@ async function catFetch(){
   try{const c=await caches.open("jmr-catalogo");const hit=await c.match(key);if(hit)return await hit.json()}catch(e){}
   let txt=null;
   let nuevo=false;
-  if(sb&&uid&&window.DecompressionStream)for(const f of ["catalogo-"+CATVER+".json.gz","catalogo.json.gz"]){
+  if(sb&&uid&&window.DecompressionStream)for(const f of ["catalogo-"+CATVER+".json.gz","catalogo-2026-10-10.json.gz","catalogo.json.gz"]){
     try{const {data,error}=await sb.storage.from("catalogos").download(f);
-      if(!error&&data){txt=await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text();nuevo=f!=="catalogo.json.gz";break}}catch(e){txt=null}}
+      if(!error&&data){txt=await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).text();nuevo=f==="catalogo-"+CATVER+".json.gz";break}}catch(e){txt=null}}
   if(txt===null)throw 0;
   const d=JSON.parse(txt);
   if(nuevo)try{const c=await caches.open("jmr-catalogo");for(const k of await c.keys())await c.delete(k);await c.put(key,new Response(txt,{headers:{"content-type":"application/json"}}))}catch(e){}
@@ -803,7 +803,7 @@ async function ventasHoy(){
 pintaCart();
 
 // ---- Actualización automática ----
-const VER="26";
+const VER="27";
 fetch("version.txt?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.text():"").then(t=>{
   t=t.trim();if(t&&t!==VER&&!location.search.includes("v="+t))location.replace("./?v="+t);
 }).catch(()=>{});
